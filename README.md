@@ -22,20 +22,50 @@ curl http://localhost:3000/
 
 ---
 
-## 2. Arquitectura de Seguridad (Estado Actual vs Objetivo)
+##  2. Arquitectura de Seguridad (Estado Actual vs Objetivo)
 
-**Estado Inicial (Vulnerable):**
+```mermaid
+flowchart TD
+    subgraph Estado_Actual ["Estado Inicial (Vulnerable y Sin Controles)"]
+        direction LR
+        Dev1((Developer)) -->|Push| Repo1[Código en Texto Plano]
+        Repo1 -->|Deploy Manual| AppVuln[Monolito Node.js\n- SQLi, SSRF, JWT alg:none\n- Secretos Expuestos]
+        AppVuln -->|Sin Firewall| BD_Vuln[(Base de Datos\nSin Cifrar)]
+    end
 
-- Aplicación monolítica Node.js expuesta sin WAF.
-- Credenciales en duro, inyecciones SQL y endpoints sin autenticación estricta.
-- Contenedores corriendo como root con librerías vulnerables.
-- Infraestructura AWS sin auditoría, sin cifrado KMS y SGs permisivos (0.0.0.0/0).
+    subgraph Estado_Objetivo ["Estado Objetivo (DevSecOps & Infraestructura AWS)"]
+        direction TB
+        
+        subgraph DevSecOps ["Pipeline CI/CD (GitHub Actions)"]
+            direction LR
+            Push[Git Push] --> Sec[Gitleaks\nSecretos]
+            Sec --> SAST[Semgrep\nCustom Rules]
+            SAST --> SCA[Trivy\nDependencias & SBOM]
+            SCA --> IaC[Checkov\nTerraform Scan]
+            IaC --> DAST[OWASP ZAP\nAPI Autenticada]
+        end
 
-**Estado Objetivo Alcanzado (Seguro):**
+        subgraph Infraestructura ["AWS Cloud Architecture (Terraform)"]
+            direction TB
+            WAF[AWS WAF v2\nGeo-Block & Rate Limit] --> ALB[ALB\nPuertos 80/443]
+            ALB --> VPC[VPC 3-Capas\nSubredes Aisladas]
+            VPC --> ECS[ECS Tareas\nLeast Privilege IAM]
+            ECS --> RDS[(RDS PostgreSQL\nKMS CMK, Multi-AZ,\nPrivate)]
+        end
 
-- Pipeline: Gitleaks → Semgrep → Trivy (SCA/Image) → Checkov → ZAP DAST.
-- App: Inputs sanitizados (SQLi mitigado), PII enmascarado en logs, Rate Limiting y JWT verificados alg:HS256.
-- Infraestructura: VPC 3-capas segmentada, RDS cifrado Multi-AZ, S3 con Object Lock COMPLIANCE, WAF v2 con geo-restricción y monitoreo continuo (GuardDuty, Config, SecurityHub, CloudTrail).
+        subgraph Monitoreo ["Auditoría Continua y Respuesta (IR)"]
+            direction LR
+            CT[CloudTrail\nMulti-region] --> S3[(S3 Audit Logs\nObject Lock Compliance)]
+            GD[GuardDuty\nThreat Intel IPs] -.->|Alertas| IR[Playbook IR\nComandos Contención]
+            Config[AWS Config\nCIS Rules]
+        end
+
+        DevSecOps -->|Deploy Seguro| WAF
+        Infraestructura -.->|Flow Logs & Eventos| Monitoreo
+    end
+
+    Estado_Actual ~~~ Estado_Objetivo
+```
 
 ---
 
