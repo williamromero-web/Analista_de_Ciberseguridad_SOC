@@ -1,0 +1,132 @@
+name: DevSecOps Pipeline - FleetSec
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  secrets-scanning:
+    name: Gitleaks Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast-semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep Scan
+        run: |
+          pip install semgrep
+          semgrep scan --config .semgrep/custom-rules.yml --error
+        env:
+          SEMGREP_RULES: .semgrep/custom-rules.yml
+
+  sca-trivy:
+    name: Trivy SCA & SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy Dependency Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'app'
+          exit-code: 1
+          severity: 'CRITICAL,HIGH'
+      - name: Generar SBOM CycloneDX JSON
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'app'
+          format: 'cyclonedx'
+          output: 'sbom-cyclonedx.json'
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-artifact
+          path: sbom-cyclonedx.json
+
+  container-security:
+    name: Trivy Container Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker Image
+        run: docker build -t fleetsec-app:local ./app
+      - name: Scan Image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'fleetsec-app:local'
+          exit-code: 1
+          severity: 'CRITICAL'
+
+  iac-checkov:
+    name: Checkov IaC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/
+          soft_fail: false
+
+  dast-zap:
+    name: DAST ZAP Automation
+    runs-on: ubuntu-latest
+    needs: container-security 
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Iniciar aplicación en staging local
+        run: |
+          docker build -t fleetsec-app:local ./app
+          docker run -d -p 3000:3000 --name app fleetsec-app:local
+          sleep 10
+          
+      - name: Generar Bearer JWT de prueba
+        run: |
+          cd app
+          npm install jsonwebtoken
+          TOKEN=$(node -e "const jwt = require('jsonwebtoken'); console.log(jwt.sign({ id: 1, role: 'admin' }, process.env.JWT_SECRET || 'fallback_local_secret_12345!', { algorithm: 'HS256' }));")
+          echo "ZAP_JWT_TOKEN=$TOKEN" >> $GITHUB_ENV
+          
+      - name: OWASP ZAP API Scan (OpenAPI)
+        uses: zaproxy/action-api-scan@v0.10.0
+        with:
+          target: 'app/openapi.yaml'
+          format: openapi
+          allow_issue_writing: true
+          fail_action: false
+        env:
+          ZAP_AUTH_HEADER_VALUE: "Bearer ${{ env.ZAP_JWT_TOKEN }}"
+          ZAP_AUTH_HEADER: "Authorization"
+
+      - name: Etiquetar Issues MEDIUM y aplicar Quality Gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "security/medium" --color "FBCA04" --description "Riesgo Medio detectado por DAST" || true
+          gh issue list --search "ZAP Scan" --json number -q '.[].number' | xargs -I {} gh issue edit {} --add-label "security/medium" || true
+          if [ -f report_json.json ]; then
+            HIGH_ALERTS=$(jq '[.site[].alerts[]? | select((.riskcode | tonumber) >= 3)] | length' report_json.json)
+            if [ "$HIGH_ALERTS" -gt 0 ]; then
+              echo "CRITICAL/HIGH vulnerabilidades encontradas por ZAP. Bloqueando pipeline."
+              exit 1
+            else
+              echo "Quality Gate DAST superado. Las vulnerabilidades MEDIUM generaron issues automáticos."
+            fi
+          fi

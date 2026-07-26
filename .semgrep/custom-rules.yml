@@ -1,0 +1,23 @@
+rules:
+  - id: express-sqli-custom
+    patterns:
+      - pattern-inside: |
+          $APP.post(...)
+      - pattern: |
+          $DB.get(..., <... $REQ.body.$VAR ...>, ...)
+    message: "CRITICAL: Posible inyección SQL detectada en el endpoint de Express usando variables directamente del body sin parametrizar."
+    severity: ERROR
+    languages:
+      - javascript
+
+  - id: jwt-decode-without-verify-custom
+    patterns:
+      - pattern: jwt.decode(...)
+      - pattern-not-inside: |
+          jwt.verify(...)
+          ...
+          jwt.decode(...)
+    message: "HIGH: Uso de jwt.decode() sin una verificación previa (jwt.verify). Esto permite ataques de alteración de token o alg:none."
+    severity: ERROR
+    languages:
+      - javascript

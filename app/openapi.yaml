@@ -1,0 +1,58 @@
+openapi: 3.0.0
+info:
+  title: FleetSec API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/login:
+    post:
+      summary: Endpoint de Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: OK
+  /api/proxy:
+    get:
+      summary: Endpoint Proxy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /api/users/{id}:
+    get:
+      summary: Obtener perfil
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
