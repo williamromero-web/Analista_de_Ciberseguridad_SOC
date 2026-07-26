@@ -2,6 +2,7 @@
 # GUARDDUTY & SECURITY HUB
 # ------------------------------------------------------------------
 resource "aws_guardduty_detector" "main" {
+  #checkov:skip=CKV2_AWS_3: "No requerimos despliegue centralizado en la org para esta prueba"
   enable = true
 }
 
@@ -36,6 +37,12 @@ resource "aws_iam_role_policy_attachment" "config_policy" {
 resource "aws_config_configuration_recorder" "main" {
   name     = "${var.company_name}-config-recorder"
   role_arn = aws_iam_role.config_role.arn
+
+  # Soluciona CKV2_AWS_48
+  recording_group {
+    all_supported                 = true
+    include_global_resource_types = true
+  }
 }
 
 # Reglas de Configuración

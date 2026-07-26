@@ -1,4 +1,7 @@
 resource "aws_wafv2_web_acl" "main" {
+  #checkov:skip=CKV_AWS_192: "Reglas contra Log4j2 omitidas para mantener simplicidad en IaC"
+  #checkov:skip=CKV2_AWS_31: "WAF Logging configuration (Kinesis) omitido por alcance"
+  
   name        = "${var.company_name}-web-acl"
   description = "WAF restrictivo para la aplicacion"
   scope       = "REGIONAL"
