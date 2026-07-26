@@ -1,0 +1,18 @@
+title: SQL Injection Patterns in Web Query Parameters
+status: stable
+description: Detecta strings comúnmente utilizados en ataques de Inyección SQL en los parámetros de consultas web.
+author: Ingeniero de Ciberseguridad FleetSec
+logsource:
+  category: webserver
+detection:
+  keywords:
+    - 'UNION SELECT'
+    - '1=1'
+    - 'OR true'
+    - '%27%20OR%20%27'
+    - '--'
+    - 'WAITFOR DELAY'
+  condition: keywords
+falsepositives:
+  - Escaneos legítimos de herramientas DAST (ej. OWASP ZAP) durante el pipeline de CI/CD.
+level: high

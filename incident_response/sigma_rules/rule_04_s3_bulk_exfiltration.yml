@@ -1,0 +1,16 @@
+title: S3 Bulk Data Exfiltration (Mass GetObject)
+status: experimental
+description: Detecta la descarga masiva de objetos desde un bucket S3 (más de 100 llamadas en 5 minutos por el mismo usuario).
+author: Ingeniero de Ciberseguridad FleetSec
+logsource:
+  product: aws
+  service: s3
+detection:
+  selection:
+    eventName:
+      - GetObject
+  condition: selection | count() > 100
+  timeframe: 5m
+falsepositives:
+  - Tareas programadas de Big Data Analytics, backups automatizados o procesos batch legítimos.
+level: high

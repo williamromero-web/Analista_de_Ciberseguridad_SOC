@@ -1,0 +1,17 @@
+title: CloudTrail DeleteTrail Evasion Attempt
+status: stable
+description: Detecta intentos de borrar o detener los registros de auditoría de AWS CloudTrail, un comportamiento típico de anti-forense.
+author: Ingeniero de Ciberseguridad FleetSec
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventName:
+      - DeleteTrail
+      - StopLogging
+      - UpdateTrail
+  condition: selection
+falsepositives:
+  - Destrucción de infraestructura efímera (Terraform destroy) en entornos de desarrollo.
+level: critical

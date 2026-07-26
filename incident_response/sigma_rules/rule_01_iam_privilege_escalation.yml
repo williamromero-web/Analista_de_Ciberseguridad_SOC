@@ -1,0 +1,20 @@
+title: IAM Administrator Policy Attached Outside Business Hours
+status: experimental
+description: Detecta la asignación de políticas de administrador a usuarios IAM fuera de la ventana operativa normal (00:00-06:00 UTC).
+author: Ingeniero de Ciberseguridad FleetSec
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventName:
+      - AttachUserPolicy
+      - AttachRolePolicy
+      - PutUserPolicy
+    requestParameters.policyArn:
+      - 'arn:aws:iam::aws:policy/AdministratorAccess'
+  timeframe: '00:00-06:00'
+  condition: selection
+falsepositives:
+  - Ventanas de mantenimiento de emergencia documentadas y ejecutadas por SRE/DevOps.
+level: high

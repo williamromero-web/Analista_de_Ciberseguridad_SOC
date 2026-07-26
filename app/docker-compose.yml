@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  fleetsec-app:
+    build: .
+    container_name: fleetsec-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=staging
+      - JWT_SECRET=fallback_local_secret_12345!
+      - PORT=3000
+    restart: unless-stopped
