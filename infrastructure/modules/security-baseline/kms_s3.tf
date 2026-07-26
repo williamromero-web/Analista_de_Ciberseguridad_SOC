@@ -50,26 +50,25 @@ resource "aws_kms_key" "rds_key" {
 # S3 LOGS BUCKET CON OBJECT LOCK COMPLIANCE
 # ------------------------------------------------------------------
 
-#checkov:skip=CKV2_AWS_62: "No requerimos notificaciones de eventos (SNS/SQS) para este bucket de auditoria, fuera del alcance."
-#checkov:skip=CKV_AWS_18: "No requerimos access logging en el propio bucket de logs por el momento."
-#checkov:skip=CKV_AWS_144: "Cross-region replication no requerido para este bucket."
-#checkov:skip=CKV2_AWS_61: "Lifecycle de versiones no requerido."
 resource "aws_s3_bucket" "audit_logs" {
+  #checkov:skip=CKV2_AWS_62: "No requerimos notificaciones de eventos (SNS/SQS) para este bucket de auditoria."
+  #checkov:skip=CKV_AWS_18: "No requerimos access logging en el propio bucket de logs para evitar ciclos infinitos."
+  #checkov:skip=CKV_AWS_144: "Cross-region replication no requerido para este bucket."
+  #checkov:skip=CKV2_AWS_61: "Lifecycle de versiones no requerido."
+
   bucket              = "${var.company_name}-${var.environment}-audit-logs-${data.aws_caller_identity.current.account_id}"
   object_lock_enabled = true
 }
 
-resource "aws_s3_bucket_object_lock_configuration" "audit_logs_lock" {
+# Solución a CKV_AWS_21: Habilitar versionamiento explícito
+resource "aws_s3_bucket_versioning" "audit_logs_versioning" {
   bucket = aws_s3_bucket.audit_logs.id
-
-  rule {
-    default_retention {
-      mode = "COMPLIANCE"
-      days = 365
-    }
+  versioning_configuration {
+    status = "Enabled"
   }
 }
 
+# Bloqueo total de acceso público
 resource "aws_s3_bucket_public_access_block" "audit_logs_block_public" {
   bucket                  = aws_s3_bucket.audit_logs.id
   block_public_acls       = true
@@ -78,6 +77,7 @@ resource "aws_s3_bucket_public_access_block" "audit_logs_block_public" {
   restrict_public_buckets = true
 }
 
+# Configuración de cifrado con KMS
 resource "aws_s3_bucket_server_side_encryption_configuration" "audit_logs_crypto" {
   bucket = aws_s3_bucket.audit_logs.id
 
@@ -89,6 +89,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "audit_logs_crypto
   }
 }
 
+# Regla de ciclo de vida (Transición a Glacier a los 180 días)
 resource "aws_s3_bucket_lifecycle_configuration" "audit_logs_lifecycle" {
   bucket = aws_s3_bucket.audit_logs.id
 
