@@ -50,6 +50,10 @@ resource "aws_kms_key" "rds_key" {
 # S3 LOGS BUCKET CON OBJECT LOCK COMPLIANCE
 # ------------------------------------------------------------------
 
+#checkov:skip=CKV2_AWS_62: "No requerimos notificaciones de eventos (SNS/SQS) para este bucket de auditoria, fuera del alcance."
+#checkov:skip=CKV_AWS_18: "No requerimos access logging en el propio bucket de logs por el momento."
+#checkov:skip=CKV_AWS_144: "Cross-region replication no requerido para este bucket."
+#checkov:skip=CKV2_AWS_61: "Lifecycle de versiones no requerido."
 resource "aws_s3_bucket" "audit_logs" {
   bucket              = "${var.company_name}-${var.environment}-audit-logs-${data.aws_caller_identity.current.account_id}"
   object_lock_enabled = true
@@ -92,11 +96,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "audit_logs_lifecycle" {
     id     = "glacier_archive"
     status = "Enabled"
 
-    filter {}
+    filter {} 
 
     transition {
       days          = 180
       storage_class = "GLACIER"
+    }
+
+    # Solución al error CKV_AWS_300
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
     }
   }
 }
