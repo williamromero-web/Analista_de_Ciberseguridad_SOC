@@ -1,0 +1,13 @@
+# Dependencias y binarios de Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Dependencias de Node.js
+node_modules/
+app/node_modules/
+
+# Logs y variables de entorno locales
+*.log
+.env
