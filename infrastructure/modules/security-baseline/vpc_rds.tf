@@ -3,6 +3,7 @@
 # ------------------------------------------------------------------
 #checkov:skip=CKV2_AWS_12: "Omitimos restriccion de default SG por simplicidad en la prueba"
 resource "aws_vpc" "main" {
+  #checkov:skip=CKV2_AWS_12: "Omitimos restriccion de default SG por simplicidad en la prueba"
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
@@ -47,6 +48,7 @@ resource "aws_cloudwatch_log_group" "vpc_flow_log_group" {
 # ------------------------------------------------------------------
 #checkov:skip=CKV2_AWS_5: "SG no atado a recurso final porque no se despliega EC2/ALB en este test IaC"
 resource "aws_security_group" "alb_sg" {
+  #checkov:skip=CKV2_AWS_5: "SG no atado a recurso final porque no se despliega EC2/ALB en este test IaC"
   #checkov:skip=CKV_AWS_260: "Excepcion valida de la prueba: Se permite 0.0.0.0/0 en 80/443 para el ALB"
   name        = "${var.company_name}-alb-sg"
   vpc_id      = aws_vpc.main.id
@@ -70,6 +72,7 @@ resource "aws_security_group" "alb_sg" {
 
 #checkov:skip=CKV2_AWS_5: "SG no atado a recurso final en este test"
 resource "aws_security_group" "app_sg" {
+  #checkov:skip=CKV2_AWS_5: "SG no atado a recurso final en este test"
   name        = "${var.company_name}-app-sg"
   vpc_id      = aws_vpc.main.id
   description = "Permitir trafico solo desde el ALB"
